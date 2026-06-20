@@ -29,7 +29,7 @@ export default function FlashcardsPage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [count, setCount] = useState(20);
-  const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set<string>());
 
   async function generateCards() {
     setGenerating(true);
@@ -50,7 +50,7 @@ export default function FlashcardsPage() {
 
   async function handleReview(quality: number) {
     const card = cards[currentIndex];
-    setReviewed(prev => new Set([...prev, card.id]));
+    setReviewed(prev => new Set(Array.from(prev).concat(card.id)));
 
     try {
       const token = await getToken();
