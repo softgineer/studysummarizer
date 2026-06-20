@@ -7,6 +7,9 @@ const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 export interface AuthRequest extends Request {
   userId?: string;
   clerkUserId?: string;
+  file?: any;
+  params: any;
+  body: any;
 }
 
 export async function requireAuth(
