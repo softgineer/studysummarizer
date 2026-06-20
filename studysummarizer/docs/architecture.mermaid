@@ -1,0 +1,78 @@
+graph TB
+    subgraph Client["Frontend — Next.js on Vercel"]
+        UI[React Pages]
+        API_CLIENT[API Client lib/api.ts]
+    end
+
+    subgraph Auth["Clerk Auth"]
+        CLERK[JWT Tokens]
+        WEBHOOK[User Sync Webhooks]
+    end
+
+    subgraph Backend["Backend — Express on Railway"]
+        SERVER[Express Server]
+        MW[Auth Middleware]
+        DOC_ROUTE["/api/documents"]
+        SUM_ROUTE["/api/summaries"]
+        CHAT_ROUTE["/api/chat"]
+        FC_ROUTE["/api/flashcards"]
+        EXP_ROUTE["/api/export"]
+    end
+
+    subgraph Services["Backend Services"]
+        PDF_SVC[PDF Service\npdf-parse + Tesseract OCR]
+        AI_SVC[AI Service\nClaude API]
+        RAG_SVC[RAG Service\nEmbeddings + Retrieval]
+        EXPORT_SVC[Export Service\npdfmake + docx]
+        STORAGE_SVC[Storage Service\nAWS S3]
+        CHUNKER[Chunker Utility\n800-token chunks\n150-token overlap]
+    end
+
+    subgraph Storage["Data Storage"]
+        PG[(PostgreSQL\nPrisma ORM)]
+        S3[(AWS S3\nPDF Files)]
+        PINE[(Pinecone\nVector DB)]
+    end
+
+    subgraph AI["AI / ML"]
+        CLAUDE[Claude API\nclaude-sonnet-4-6]
+        EMBED[OpenAI Embeddings\ntext-embedding-3-small\n1536 dimensions]
+    end
+
+    UI --> API_CLIENT
+    API_CLIENT -->|Bearer JWT| SERVER
+    CLERK --> MW
+    WEBHOOK --> SERVER
+
+    SERVER --> MW
+    MW --> DOC_ROUTE
+    MW --> SUM_ROUTE
+    MW --> CHAT_ROUTE
+    MW --> FC_ROUTE
+    MW --> EXP_ROUTE
+
+    DOC_ROUTE --> PDF_SVC
+    DOC_ROUTE --> STORAGE_SVC
+    DOC_ROUTE --> CHUNKER
+    DOC_ROUTE --> RAG_SVC
+    DOC_ROUTE --> PG
+
+    SUM_ROUTE --> AI_SVC
+    SUM_ROUTE --> PG
+
+    CHAT_ROUTE --> RAG_SVC
+    CHAT_ROUTE --> AI_SVC
+    CHAT_ROUTE --> PG
+
+    FC_ROUTE --> AI_SVC
+    FC_ROUTE --> PG
+
+    EXP_ROUTE --> EXPORT_SVC
+    EXP_ROUTE --> PG
+
+    PDF_SVC --> S3
+    STORAGE_SVC --> S3
+    RAG_SVC --> EMBED
+    RAG_SVC --> PINE
+    AI_SVC --> CLAUDE
+    AI_SVC --> RAG_SVC

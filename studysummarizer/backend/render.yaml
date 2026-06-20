@@ -1,0 +1,31 @@
+# backend/render.yaml
+services:
+  - type: web
+    name: studysummarizer-api
+    env: node
+    buildCommand: npm install && npm run build && npx prisma generate && npx prisma migrate deploy
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: studysummarizer-db
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+
+databases:
+  - name: studysummarizer-db
+    databaseName: studysummarizer
+    plan: free

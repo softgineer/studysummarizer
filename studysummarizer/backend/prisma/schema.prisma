@@ -1,0 +1,196 @@
+// backend/prisma/schema.prisma
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Users (synced from Clerk webhooks)
+// ─────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents  Document[]
+  summaries  Summary[]
+  flashcards Flashcard[]
+  chatSessions ChatSession[]
+
+  @@index([clerkId])
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+// ─────────────────────────────────────────────
+// Documents (uploaded PDFs)
+// ─────────────────────────────────────────────
+model Document {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String          // original filename
+  s3Key        String          // S3 object key
+  s3Url        String          // public/signed URL
+  mimeType     String
+  sizeBytes    Int
+  pageCount    Int?
+  wordCount    Int?
+
+  status       DocumentStatus  @default(PROCESSING)
+  errorMessage String?
+
+  // extracted content
+  extractedText String?         @db.Text
+  hasOcr        Boolean         @default(false)
+
+  // vector store
+  pineconeNamespace String?      // namespace in Pinecone for this doc's chunks
+
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  summaries    Summary[]
+  flashcards   Flashcard[]
+  chatSessions ChatSession[]
+  chunks       DocumentChunk[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum DocumentStatus {
+  PROCESSING   // being extracted
+  READY        // text extracted, vectors stored
+  FAILED       // extraction failed
+}
+
+// ─────────────────────────────────────────────
+// Document chunks (for RAG)
+// ─────────────────────────────────────────────
+model DocumentChunk {
+  id           String   @id @default(cuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkIndex   Int
+  content      String   @db.Text
+  tokenCount   Int
+  pageNumber   Int?
+  heading      String?  // nearest detected heading
+
+  // Pinecone vector ID
+  vectorId     String?
+
+  @@index([documentId])
+  @@index([vectorId])
+}
+
+// ─────────────────────────────────────────────
+// Summaries
+// ─────────────────────────────────────────────
+model Summary {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  mode       SummaryMode
+  content    String      @db.Text  // HTML/Markdown content
+  tokenCount Int?
+
+  createdAt  DateTime    @default(now())
+
+  @@index([userId])
+  @@index([documentId])
+  @@index([mode])
+}
+
+enum SummaryMode {
+  QUICK       // 5-10 bullet points
+  DETAILED    // chapter-by-chapter
+  STUDY_NOTES // definitions, concepts, formulas
+  EXAM_PREP   // questions and answers
+}
+
+// ─────────────────────────────────────────────
+// Flashcards
+// ─────────────────────────────────────────────
+model Flashcard {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  question   String   @db.Text
+  answer     String   @db.Text
+  tags       String[] // e.g. ["definition", "formula"]
+  difficulty Int      @default(1) // 1-3
+
+  // spaced repetition
+  nextReview DateTime?
+  interval   Int       @default(1)  // days
+  easeFactor Float     @default(2.5)
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([documentId])
+  @@index([nextReview])
+}
+
+// ─────────────────────────────────────────────
+// Chat sessions
+// ─────────────────────────────────────────────
+model ChatSession {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  title      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  messages   ChatMessage[]
+
+  @@index([userId])
+  @@index([documentId])
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  sessionId     String
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role          MessageRole
+  content       String      @db.Text
+  sourceChunks  String[]    // chunk IDs used as context
+
+  createdAt     DateTime    @default(now())
+
+  @@index([sessionId])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}

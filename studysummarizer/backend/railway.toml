@@ -1,0 +1,13 @@
+# backend/railway.toml
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build && npx prisma generate"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[healthcheck]
+httpPath = "/health"
+timeoutSeconds = 10
