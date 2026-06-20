@@ -63,17 +63,17 @@ export default function SummarizePage() {
 
   // Convert markdown to HTML (simple)
   function renderMarkdown(md: string): string {
-    return md
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/^- (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/^(?!<[hul])/gm, '<p>')
-      .replace(/<p><\/p>/g, '');
+    const lines = md.split('\n');
+    let html = '';
+    for (const line of lines) {
+      if (line.startsWith('### ')) html += `<h3>${line.slice(4)}</h3>`;
+      else if (line.startsWith('## ')) html += `<h2>${line.slice(3)}</h2>`;
+      else if (line.startsWith('# ')) html += `<h1>${line.slice(2)}</h1>`;
+      else if (line.startsWith('- ')) html += `<li>${line.slice(2)}</li>`;
+      else if (line.trim() === '') html += '';
+      else html += `<p>${line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>')}</p>`;
+    }
+    return html;
   }
 
   if (!documentId) {
